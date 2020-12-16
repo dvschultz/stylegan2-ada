@@ -133,10 +133,10 @@ def training_loop(
 
     print('Exporting sample images...')
     grid_size, grid_reals, grid_labels = setup_snapshot_image_grid(training_set)
-    save_image_grid(grid_reals, os.path.join(run_dir, 'reals.png'), drange=[0,255], grid_size=grid_size)
+    save_image_grid(grid_reals, os.path.join(run_dir, 'reals.jpg'), drange=[0,255], grid_size=grid_size)
     grid_latents = np.random.randn(np.prod(grid_size), *G.input_shape[1:])
     grid_fakes = Gs.run(grid_latents, grid_labels, is_validation=True, minibatch_size=minibatch_gpu)
-    save_image_grid(grid_fakes, os.path.join(run_dir, 'fakes_init.png'), drange=[-1,1], grid_size=grid_size)
+    save_image_grid(grid_fakes, os.path.join(run_dir, 'fakes_init.jpg'), drange=[-1,1], grid_size=grid_size)
 
     print(f'Replicating networks across {num_gpus} GPUs...')
     G_gpus = [G]
@@ -202,6 +202,8 @@ def training_loop(
     D_reg_op = D_reg_opt.apply_updates(allow_no_op=True)
     Gs_beta_in = tf.placeholder(tf.float32, name='Gs_beta_in', shape=[])
     Gs_update_op = Gs.setup_as_moving_average_of(G, beta=Gs_beta_in)
+    Gs_epochs = tf.placeholder(tf.float32, name='Gs_epochs', shape=[])
+    Gs_epochs_op = Gs.update_epochs(Gs_epochs)
     tflib.init_uninitialized_vars()
     with tf.device('/gpu:0'):
         peak_gpu_mem_op = tf.contrib.memory_stats.MaxBytesInUse()
@@ -234,6 +236,8 @@ def training_loop(
             Gs_nimg = min(Gs_nimg, cur_nimg * G_smoothing_rampup)
         Gs_beta = 0.5 ** (minibatch_size / max(Gs_nimg, 1e-8))
 
+        epochs = float(100 * cur_nimg / (total_kimg * 1000)) # 100 total top k "epochs" in total_kimg
+
         # Run training ops.
         for _repeat_idx in range(minibatch_repeats):
             rounds = range(0, minibatch_size, minibatch_gpu * num_gpus)
@@ -247,7 +251,7 @@ def training_loop(
                 tflib.run([G_train_op, data_fetch_op])
                 if run_G_reg:
                     tflib.run(G_reg_op)
-                tflib.run([D_train_op, Gs_update_op], {Gs_beta_in: Gs_beta})
+                tflib.run([D_train_op, Gs_update_op, Gs_epochs_op], {Gs_beta_in: Gs_beta, Gs_epochs: epochs})
                 if run_D_reg:
                     tflib.run(D_reg_op)
 
@@ -257,7 +261,7 @@ def training_loop(
                     tflib.run(G_train_op)
                     if run_G_reg:
                         tflib.run(G_reg_op)
-                tflib.run(Gs_update_op, {Gs_beta_in: Gs_beta})
+                tflib.run([Gs_update_op, Gs_epochs_op], {Gs_beta_in: Gs_beta, Gs_epochs: epochs})
                 for _round in rounds:
                     tflib.run(data_fetch_op)
                     tflib.run(D_train_op)

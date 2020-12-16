@@ -88,7 +88,7 @@ def eval_D(D, aug, images, labels, report=None, augment_inputs=True, return_aux=
 # Non-saturating logistic loss with R1 and path length regularizers, used
 # in the paper "Analyzing and Improving the Image Quality of StyleGAN".
 
-def stylegan2(G, D, aug, fake_labels, real_images, real_labels, r1_gamma=10, pl_minibatch_shrink=2, pl_decay=0.01, pl_weight=2, **_kwargs):
+def stylegan2(G, D, aug, fake_labels, real_images, real_labels, r1_gamma=10, pl_minibatch_shrink=2, pl_decay=0.01, pl_weight=2, G_top_k = False, G_top_k_gamma = 0.9, G_top_k_frac = 0.5,  **_kwargs):
     # Evaluate networks for the main loss.
     minibatch_size = tf.shape(fake_labels)[0]
     fake_latents = tf.random_normal([minibatch_size] + G.input_shapes[0][1:])
@@ -98,7 +98,14 @@ def stylegan2(G, D, aug, fake_labels, real_images, real_labels, r1_gamma=10, pl_
 
     # Non-saturating logistic loss from "Generative Adversarial Nets".
     with tf.name_scope('Loss_main'):
-        G_loss = tf.nn.softplus(-D_fake.scores) # -log(sigmoid(D_fake.scores)), pylint: disable=invalid-unary-operand-type
+        D_fake_scores = D_fake.scores
+        if G_top_k:
+            k_frac = tf.maximum(G_top_k_gamma ** G.epochs, G_top_k_frac)
+            k = tf.cast(tf.ceil(tf.cast(minibatch_size, tf.float32) * k_frac), tf.int32)
+            lowest_k_scores, _ = tf.nn.top_k(-tf.squeeze(D_fake_scores), k=k) # want smallest probabilities not largest
+            D_fake_scores = tf.expand_dims(-lowest_k_scores, axis=1)
+        G_loss = tf.nn.softplus(-D_fake_scores) # -log(sigmoid(D_fake_scores)), pylint: disable=invalid-unary-operand-type
+
         D_loss = tf.nn.softplus(D_fake.scores) # -log(1 - sigmoid(D_fake.scores))
         D_loss += tf.nn.softplus(-D_real.scores) # -log(sigmoid(D_real.scores)), pylint: disable=invalid-unary-operand-type
         G_reg = 0

@@ -1,8 +1,22 @@
+## Need Help?
+* If you’re new to StyleGAN2-ADA and looking to get started, please check out [this video series](https://www.youtube.com/playlist?list=PLWuCzxqIpJs8ViuBIUtAk-dsAtdrApYoy) from a course Lia Coleman and I taught in October 2020.
+* Interested in contributing? Please submit PRs or discuss changes in the [Artificial Images Slack](https://join.slack.com/t/ml-images/shared_invite/zt-9mxoe7va-eBZ9xzAWpx8VRL~Km_PzUQ) channel
+
 ## Edits made to this repo
 
-* **Default GPU-based configs**: added configs to maximize GPU usage for 11GB. 24GB, and 48GB cards (use 11GB for 16GB cards)
-* **Vertical Mirroring**: use `--mirrory=True` to flip training set top to bottom
 * **Fakes .jpg**: save yourself a ton of space with fakes during training saved as .jpg instead of .png
+* **Default GPU-based configs**: added configs to maximize GPU usage for 11GB. 24GB, and 48GB cards (use 11GB for 16GB cards)
+* **"Complex" configs**: Apply the cifar10 config to other datasets (good for complex/diverse datasets) Use `11gb-gpu-complex` or `24gb-gpu-complex`
+* **Conditional dataset creation from folders**: Make conditional datasets from folders of images using `create_from image_folders` or `create_from image_folders_raw`
+* **Vertical Mirroring**: use `--mirrory=True` to flip training set top to bottom
+* **Interpolations methods**: Multiple interpolation methods included in the generate.py script
+* **Neighbor vectors**: Fine-tune seed selections by looking at vectors near it. Included in the generate.py script
+* **Use np vectors in interpolations (in addition to seed values)** Use saved .npy or .npz files in interpolation metohds. Thanks @ekkolabs!
+* **Flesh Digressions**: @aydao’s circular constant layer script edited to work with ADA see aydao_flesh_digressions.py
+* **Raw dataset creations**: Taken from the @skyflynil repo, reduces the size of datasets dramatically. Use `create_from images_raw` and `create_from image_folders_raw` in dataset creation, and use `--use-raw=True` in training (False by default!)
+* **align faces script**: From @pbaylies, this script will align images better for projection.
+* **top-k training**: Improve generator training by only propagating gradients from images the discriminator was most unsure of: [Sinha & Zhao](https://arxiv.org/abs/2002.06224).
+* **@aydao's config**: Extra large config for huge datasets (>100k img)
 
 ## StyleGAN2 with adaptive discriminator augmentation (ADA)<br>&mdash; Official TensorFlow implementation
 

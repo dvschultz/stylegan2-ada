@@ -120,6 +120,7 @@ class Network:
         self._trainables            = None
         self._var_global_to_local   = None
         self._run_cache             = dict()
+        self.epochs = tf.Variable(0., dtype=tf.float32, name='epochs')
 
     def _init_graph(self) -> None:
         assert self._var_inits is not None
@@ -536,6 +537,12 @@ class Network:
                     new_value = tfutil.lerp(src_net._get_vars()[name], var, cur_beta)
                     ops.append(var.assign(new_value))
             return tf.group(*ops)
+
+    def update_epochs(self, epochs: TfExpressionEx = 0) -> tf.Operation:
+        """Construct a TensorFlow op that updates the epoch counter of this network."""
+        with tfutil.absolute_name_scope(self.scope + "/_Epochs"):
+            op = self.epochs.assign(epochs)
+            return op
 
     def run(self,
             *in_arrays: Tuple[Union[np.ndarray, None], ...],
