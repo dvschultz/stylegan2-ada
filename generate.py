@@ -86,7 +86,6 @@ def generate_images(network_pkl, seeds, truncation_psi, outdir, class_idx=None, 
             fname = f'{outdir}/dlatent{i:02d}.png'
             print (f'Saved {fname}')
             PIL.Image.fromarray(img, 'RGB').save(fname)
-        return
 
     # Render images for dlatents initialized from random seeds.
     Gs_kwargs = {
@@ -106,13 +105,14 @@ def generate_images(network_pkl, seeds, truncation_psi, outdir, class_idx=None, 
         print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
         rnd = np.random.RandomState(seed)
         z = rnd.randn(1, *Gs.input_shape[1:]) # [minibatch, component]
-        if(fixnoise):
+        if fixnoise:
             noise_rnd = np.random.RandomState(1) # fix noise
             tflib.set_vars({var: noise_rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
         else:
             tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
         image = Gs.run(z, label, **Gs_kwargs) # [minibatch, height, width, channel]
-        images.append(image[0])
+        if grid:
+            images.append(image[0])
         PIL.Image.fromarray(image[0], 'RGB').save(f'{outdir}/seed{seed:04d}.png')
         if(save_vector):
             np.save(f'{outdir}/vectors/seed{seed:04d}',z)
