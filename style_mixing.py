@@ -91,7 +91,7 @@ def style_mixing_video(network_pkl,             # Path to pretrained model pkl f
                        dst_seeds,               # Seeds of the destination image styles (columns)
                        col_styles,              # Styles to transfer from first row to first column
                        truncation_psi=1.0,      # Truncation trick
-                       only_stylemix=False,     # True if user wishes to show only the style transferred result
+                       only_stylemix=False,     # Show only the style transferred result
                        outdir='out',
                        duration_sec=30.0,
                        smoothing_sec=3.0,
@@ -123,7 +123,7 @@ def style_mixing_video(network_pkl,             # Path to pretrained model pkl f
     # First column latents
     print('Generating source W vectors...')
     src_shape = [num_frames] + Gs.input_shape[1:]
-    src_z = np.random.RandomState(*src_seed).randn(*src_shape).astype(np.float32)  # [frames, src, component]
+    src_z = np.random.RandomState(*[src_seed]).randn(*src_shape).astype(np.float32)  # [frames, src, component]
     src_z = scipy.ndimage.gaussian_filter(
         src_z,
         [smoothing_sec * mp4_fps] + [0] * (len(Gs.input_shape) - 1),
@@ -151,7 +151,7 @@ def style_mixing_video(network_pkl,             # Path to pretrained model pkl f
     if not only_stylemix:
         print('Generating full video (including source and destination images)')
         # Generate our canvas where we will paste all the generated images:
-        canvas = PIL.Image.new("RGB", (W * (len(dst_seeds) + 1), H * (len(src_seed) + 1)), 'black')
+        canvas = PIL.Image.new("RGB", (W * (len(dst_seeds) + 1), H * (len([src_seed]) + 1)), 'black')
 
         for col, dst_image in enumerate(list(dst_images)):
             canvas.paste(PIL.Image.fromarray(dst_image, "RGB"), ((col + 1) * H, 0))
@@ -180,11 +180,12 @@ def style_mixing_video(network_pkl,             # Path to pretrained model pkl f
                         ((col + 1) * H, (row + 1) * W),
                     )
             return np.array(canvas)
+        mp4_name = f'{len(dst_seeds)}x1-style-mixing.mp4'
     # Else, show only the style-transferred images (this is nice for the 1x1 case)
     else:
         print('Generating only the style-transferred images')
         # Generate our canvas where we will paste all the generated images:
-        canvas = PIL.Image.new("RGB", (W * len(dst_seeds), H * len(src_seed)), "white")
+        canvas = PIL.Image.new("RGB", (W * len(dst_seeds), H * len([src_seed])), 'black')
 
         def make_frame(t):
             # Get the frame number according to time t:
@@ -204,12 +205,11 @@ def style_mixing_video(network_pkl,             # Path to pretrained model pkl f
                         (col * H, row * W),
                     )
             return np.array(canvas)
+        mp4_name = f'{len(dst_seeds)}x1-onlystylemix.mp4'
     # Generate video using make_frame:
     print('Generating style-mixed video...')
     videoclip = moviepy.editor.VideoClip(make_frame, duration=duration_sec)
-    grid_size = [len(dst_seeds), len(src_seed)]
-    mp4 = "{}x{}-style-mixing.mp4".format(*grid_size)
-    videoclip.write_videofile(os.path.join(outdir, mp4),
+    videoclip.write_videofile(os.path.join(outdir, mp4_name),
                               fps=mp4_fps,
                               codec=mp4_codec,
                               bitrate=mp4_bitrate)
@@ -257,9 +257,12 @@ def _parse_num_range(s):
 #----------------------------------------------------------------------------
 
 _examples = '''examples:
-
-  python %(prog)s --outdir=out --trunc=1 --rows=85,100,75,458,1500 --cols=55,821,1789,293 \\
-      --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl
+  # Grid of style-transferred images, transferring coarse and middle layers of the model
+  python %(prog)s grid --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl \\
+      --outdir=out --trunc=1 --row-seeds=85,95-100,1500 --col-seeds=55,821,1789,293 --col-styles=0-7
+  # Video using lerp (60 seconds at 60 fps) and transferring coarse and fine layers of the model
+  python %(prog)s video --network=https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl \\
+      --outdir=out --trunc=1 --row-seed=1 --col-seeds=300-305 --col-styles=0-3,8-15 --duration=60 --fps=60
 '''
 
 #----------------------------------------------------------------------------
