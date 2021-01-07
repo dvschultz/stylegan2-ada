@@ -22,8 +22,8 @@ import dnnlib
 import dnnlib.tflib as tflib
 
 class Projector:
-    def __init__(self):
-        self.num_steps                  = 1000
+    def __init__(self, num_steps=1000):
+        self.num_steps                  = num_steps
         self.dlatent_avg_samples        = 10000
         self.initial_learning_rate      = 0.1
         self.initial_noise_factor       = 0.05
@@ -202,7 +202,7 @@ class Projector:
 
 #----------------------------------------------------------------------------
 
-def project(network_pkl: str, target_fname: str, outdir: str, save_video: bool, seed: int):
+def project(network_pkl: str, target_fname: str, outdir: str, save_video: bool, seed: int, num_steps: int, save_every_step: bool):
     # Load networks.
     tflib.init_tf({'rnd.np_random_seed': seed})
     print('Loading networks from "%s"...' % network_pkl)
@@ -220,12 +220,14 @@ def project(network_pkl: str, target_fname: str, outdir: str, save_video: bool, 
     target_float = target_uint8.astype(np.float32).transpose([2, 0, 1]) * (2 / 255) - 1
 
     # Initialize projector.
-    proj = Projector()
+    proj = Projector(num_steps)
     proj.set_network(Gs)
     proj.start([target_float])
 
     # Setup output directory.
     os.makedirs(outdir, exist_ok=True)
+    if save_every_step:
+        os.makedirs(f'{outdir}/steps', exist_ok=True)
     target_pil.save(f'{outdir}/target.png')
     writer = None
     if save_video:
@@ -237,6 +239,9 @@ def project(network_pkl: str, target_fname: str, outdir: str, save_video: bool, 
             assert step == proj.cur_step
             if writer is not None:
                 writer.append_data(np.concatenate([target_uint8, proj.images_uint8[0]], axis=1))
+            if save_every_step:
+                PIL.Image.fromarray(proj.images_uint8[0], 'RGB').save(f'{outdir}/steps/step_{step:04d}.jpg')
+                np.save(f'{outdir}/steps/step_{step:04d}.npy', proj.dlatents)
             dist, loss = proj.step()
             t.set_postfix(dist=f'{dist[0]:.4f}', loss=f'{loss:.2f}')
 
@@ -274,11 +279,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
 
-    parser.add_argument('--network',     help='Network pickle filename', dest='network_pkl', required=True)
-    parser.add_argument('--target',      help='Target image file to project to', dest='target_fname', required=True)
-    parser.add_argument('--save-video',  help='Save an mp4 video of optimization progress (default: true)', type=_str_to_bool, default=True)
-    parser.add_argument('--seed',        help='Random seed', type=int, default=303)
-    parser.add_argument('--outdir',      help='Where to save the output images', required=True, metavar='DIR')
+    parser.add_argument('--network', help='Network pickle filename', dest='network_pkl', required=True)
+    parser.add_argument('--target', help='Target image file to project to', dest='target_fname', required=True)
+    parser.add_argument('--save-video', help='Save an mp4 video of optimization progress (default: true)', type=_str_to_bool, default=True)
+    parser.add_argument('--seed', help='Random seed', type=int, default=303)
+    parser.add_argument('--num-steps', help='Number of steps to take (default: %(default)s)', type=int, default=1000)
+    parser.add_argument('--save-every-step', help='Save all dlatents at every step', action='store_true')
+    parser.add_argument('--outdir', help='Where to save the output images', required=True, metavar='DIR')
     project(**vars(parser.parse_args()))
 
 #----------------------------------------------------------------------------
