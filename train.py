@@ -53,6 +53,7 @@ def setup_training_options(
     aug        = None, # Augmentation mode: 'ada' (default), 'noaug', 'fixed', 'adarv'
     p          = None, # Specify p for 'fixed' (required): <float>
     target     = None, # Override ADA target for 'ada' and 'adarv': <float>, default = depends on aug
+    initstrength = None,
     augpipe    = None, # Augmentation pipeline: 'blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg', 'bgc' (default), ..., 'bgcfnc'
 
     # Comparison methods.
@@ -299,6 +300,10 @@ def setup_training_options(
             raise UserError('--target must be between 0 and 1')
         desc += f'-target{target:g}'
         args.augment_args.tune_target = target
+    
+    if initstrength is not None:
+        assert isinstance(initstrength, float)
+        args.augment_args.initial_strength = initstrength
 
     assert augpipe is None or isinstance(augpipe, str)
     if augpipe is None:
@@ -591,6 +596,7 @@ def main():
     group.add_argument('--aug',    help='Augmentation mode (default: ada)', choices=['noaug', 'ada', 'fixed', 'adarv'])
     group.add_argument('--p',      help='Specify augmentation probability for --aug=fixed', type=float, metavar='FLOAT')
     group.add_argument('--target', help='Override ADA target for --aug=ada and --aug=adarv', type=float)
+    group.add_argument('--initstrength', help='Override ADA strength at start', type=float)
     group.add_argument('--augpipe', help='Augmentation pipeline (default: bgc)', choices=['blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg', 'bgc', 'bgcf', 'bgcfn', 'bgcfnc'])
 
     group = parser.add_argument_group('comparison methods')
