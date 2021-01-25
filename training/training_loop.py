@@ -30,7 +30,7 @@ import re
 def locate_latest_pkl(result_dir):
     splitdir = os.path.split(result_dir)
     result_dir = splitdir[0]
-    print(f'Searching for latest pickle file in "{result_dir}"')
+    print(f'\nSearching for latest pickle file in "{result_dir}"')
     allpickles = sorted(glob.glob(os.path.join(result_dir, '0*', 'network-*.pkl')))
     if len(allpickles) == 0:
         return None, None
