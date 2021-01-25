@@ -62,7 +62,7 @@ def setup_training_options(
     dcap       = None, # Multiplier for discriminator capacity: <float>, default = 1
 
     # Transfer learning.
-    resume     = None, # Load previous network: 'noresume' (default), 'ffhq256', 'ffhq512', 'ffhq1024', 'celebahq256', 'lsundog256', <file>, <url>
+    resume     = None, # Load previous network: 'noresume' (default), 'latest' (autodetect), 'ffhq256', 'ffhq512', 'ffhq1024', 'celebahq256', 'lsundog256', <file>, <url>
     freezed    = None, # Freeze-D: <int>, default = 0 discriminator layers
 ):
     # Initialize dicts.
@@ -250,7 +250,7 @@ def setup_training_options(
 
     if nkimg is not None:
         assert isinstance(nkimg, int)
-        args.nimg = nkimg * 1000
+        args.resume_kimg = nkimg
 
     if kimg is not None:
         assert isinstance(kimg, int)
@@ -446,6 +446,9 @@ def setup_training_options(
     elif resume in resume_specs:
         desc += f'-resume{resume}'
         args.resume_pkl = resume_specs[resume] # predefined url
+    elif resume =='latest':
+        desc += '-resumelatest'
+        args.resume_pkl = 'latest'
     else:
         desc += '-resumecustom'
         args.resume_pkl = resume # custom path or url
@@ -562,6 +565,7 @@ transfer learning source networks (--resume):
   brecahad512    BreCaHAD trained at 512x512 resolution.
   cifar10        CIFAR10 trained at 32x32 resolution.
   metfaces512    MetFaces trained at 512x512 resolution.
+  latest         Autodetect most recent pickle in results.
   <path or URL>  Custom network pickle.
 '''
 
