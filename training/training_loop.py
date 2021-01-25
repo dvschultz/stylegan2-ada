@@ -30,7 +30,6 @@ import re
 def locate_latest_pkl(result_dir):
     splitdir = os.path.split(result_dir)
     result_dir = splitdir[0]
-    print(f'\nSearching for latest pickle file in "{result_dir}"')
     allpickles = sorted(glob.glob(os.path.join(result_dir, '0*', 'network-*.pkl')))
     if len(allpickles) == 0:
         return None, None
@@ -38,7 +37,6 @@ def locate_latest_pkl(result_dir):
     # resume_run_id = os.path.basename(os.path.dirname(latest_pickle))
     RE_KIMG = re.compile(r'network-snapshot-(\d+).pkl')
     kimg = int(RE_KIMG.match(os.path.basename(latest_pickle)).group(1))
-    print(f'Resuming from latest, from {kimg} kimg')
     return latest_pickle, float(kimg)
 
 #----------------------------------------------------------------------------
@@ -145,9 +143,12 @@ def training_loop(
         Gs = G.clone('Gs')
         latest_resume_kimg = None
         if resume_pkl == 'latest':
+            print(f'\nSearching for latest pickle file in "{run_dir}"')
             resume_pkl, latest_resume_kimg = locate_latest_pkl(run_dir)
             if resume_pkl is None:
                 print('Resuming from latest not found')
+            else:
+                print(f'Resuming from latest, from {latest_resume_kimg} kimg (unless overridden)')
         if resume_pkl is not None:
             print(f'Resuming from "{resume_pkl}"')
             with dnnlib.util.open_url(resume_pkl) as f:
