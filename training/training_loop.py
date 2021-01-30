@@ -20,6 +20,25 @@ from dnnlib.tflib.autosummary import autosummary
 
 from training import dataset
 
+import glob
+import re
+
+#----------------------------------------------------------------------------
+# Find the most recent pickle in results directory, which matches 
+#   {results}/0####/network-snapshot-######.pkl
+
+def locate_latest_pkl(result_dir):
+    splitdir = os.path.split(result_dir)
+    result_dir = splitdir[0]
+    allpickles = sorted(glob.glob(os.path.join(result_dir, '0*', 'network-*.pkl')))
+    if len(allpickles) == 0:
+        return None, None
+    latest_pickle = allpickles[-1]
+    # resume_run_id = os.path.basename(os.path.dirname(latest_pickle))
+    RE_KIMG = re.compile(r'network-snapshot-(\d+).pkl')
+    kimg = int(RE_KIMG.match(os.path.basename(latest_pickle)).group(1))
+    return latest_pickle, float(kimg)
+
 #----------------------------------------------------------------------------
 # Select size and contents of the image snapshot grids that are exported
 # periodically during training.
@@ -99,7 +118,7 @@ def training_loop(
     lazy_regularization     = True,     # Perform regularization as a separate training step?
     G_reg_interval          = 4,        # How often the perform regularization for G? Ignored if lazy_regularization=False.
     D_reg_interval          = 16,       # How often the perform regularization for D? Ignored if lazy_regularization=False.
-    nimg                    = 0,        # current image count
+    resume_kimg             = None,     # current image count, measured in thousands.
     total_kimg              = 25000,    # Total length of the training, measured in thousands of real images.
     kimg_per_tick           = 4,        # Progress snapshot interval.
     image_snapshot_ticks    = 50,       # How often to save image snapshots? None = only save 'reals.png' and 'fakes-init.png'.
@@ -122,6 +141,14 @@ def training_loop(
         G = tflib.Network('G', num_channels=training_set.shape[0], resolution=training_set.shape[1], label_size=training_set.label_size, **G_args)
         D = tflib.Network('D', num_channels=training_set.shape[0], resolution=training_set.shape[1], label_size=training_set.label_size, **D_args)
         Gs = G.clone('Gs')
+        latest_resume_kimg = None
+        if resume_pkl == 'latest':
+            print(f'\nSearching for latest pickle file in "{run_dir}"')
+            resume_pkl, latest_resume_kimg = locate_latest_pkl(run_dir)
+            if resume_pkl is None:
+                print('Resuming from latest not found')
+            else:
+                print(f'Resuming from latest, from {latest_resume_kimg} kimg (unless overridden)')
         if resume_pkl is not None:
             print(f'Resuming from "{resume_pkl}"')
             with dnnlib.util.open_url(resume_pkl) as f:
@@ -223,7 +250,11 @@ def training_loop(
         progress_fn(0, total_kimg)
     tick_start_time = time.time()
     maintenance_time = tick_start_time - start_time
-    cur_nimg = nimg
+    cur_nimg = 0
+    if latest_resume_kimg is not None:
+        cur_nimg = int(latest_resume_kimg * 1000)
+    if resume_kimg is not None:
+        cur_nimg = int(resume_kimg * 1000)
     cur_tick = -1
     tick_start_nimg = cur_nimg
     running_mb_counter = 0
